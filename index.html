@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        #nfc_desktop {
+            margin: 20px;
+        }
+
+        .desktopLog {
+            background-color: rgb(182, 182, 182);
+            font-family: "Consolas", monospace;
+            margin: 20px;
+            padding: 50px;
+            border-radius: 10px;
+        }
+
+        #nfc_mobile {
+            margin: 5px;
+            border: 2px solid black;
+            padding: 10px;
+            max-width: 850px;
+        }
+
+        .mobileLog {
+            background-color: rgb(182, 182, 182);
+            font-family: "Consolas", monospace;
+            margin: 20px;
+            padding: 50px;
+            border-radius: 10px;
+            max-width: 650px;
+        }
+    </style>
+</head>
+<body>
+<h1>Escaneando com NFC</h1>
+<br />
+<div id="nfc_desktop" style="display: none">
+    <h4>
+        Seu sistema não permite o scan do crachá com NFC.
+        <br />
+        Acesse o sistema por um celular para concluir a operação.
+    </h4>
+</div>
+<div id="nfc_mobile">
+    <p>Pressione o botão e aproxime o crachá ao celular para escaneá-lo...</p>
+    <button id="buttonMobile">Escanear</button>
+    <button id="buttonBreak" disabled>Parar de escanear</button>
+    <div class="mobileLog" id="mobileLog">
+        <p id="resultMobile">O resultado será mostrado aqui</p>
+    </div>
+</div>
+
+<script>
+    /*
+    var abortController; // Definindo abortController no escopo global
+    var NFCResults = []; // Definindo NFCResults no escopo global
+
+    function verificaSO() {
+        var userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera;
+
+        if (/windows phone/i.test(userAgent)) {
+            return true; // Desktop
+        } else if (/android/i.test(userAgent)) {
+            return false; // Mobile
+        } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            return false; // Mobile
+        } else if (/Macintosh|MacIntel|MacPPC|Mac68K/.test(userAgent)) {
+            return true; // Desktop
+        } else if (/Win32|Win64|Windows|WinCE/.test(userAgent)) {
+            return true; // Desktop
+        } else {
+            return 3; // Sistema operacional desconhecido
+        }
+    }
+
+    function logScan() {
+        var divMobile = document.getElementById("nfc_mobile");
+        var divDesktop = document.getElementById("nfc_desktop");
+        var so = verificaSO();
+
+        // Se o sistema for desktop...
+        if (so === true) {
+            divDesktop.style.display = "block"; // Mostre a mensagem de bloqueio
+            divMobile.style.display = "none"; // E apague a div do scan
+        } else if (so === 3) {
+            divDesktop.style.display = "block"; // Apague o scan
+            divMobile.style.display = "none"; // E mostre o bloqueio.
+        } else {
+            // Caso seja um mobile...
+            divDesktop.style.display = "none"; // Apague a mensagem de bloqueio
+            divMobile.style.display = "block"; // E mostre o scan
+        }
+    }
+
+    async function scanNFCTags() {
+        var resultMobile = document.getElementById("resultMobile");
+        var buttonMobile = document.getElementById("buttonMobile");
+        var buttonBreak = document.getElementById("buttonBreak");
+
+        if (!("NDEFReader" in window)) {
+            alert("ERRO: Impossível escanear o crachá.\nSeu dispositivo não é capaz de realizar operações NFC.");
+            resultMobile.innerHTML = "Não foi possível escanear o crachá. Tente novamente mais tarde.";
+            buttonMobile.disabled = true;
+            buttonBreak.disabled = true;
+            return;
+        }
+
+        abortController = new AbortController();
+        abortController.signal.onabort = () => {
+            resultMobile.innerHTML = "Escaneamento abortado.";
+            buttonMobile.disabled = false; // Habilitar o botão de escanear novamente
+            buttonBreak.disabled = true; // Desabilitar o botão de parar
+        };
+
+        let ndef = new NDEFReader();
+        ndef.onreadingerror = () => {
+            resultMobile.innerHTML = "Não foi possível ler dados do crachá NFC. Tente outro.";
+        };
+        ndef.onreading = (event) => {
+            resultMobile.innerHTML = "Mensagem NDEF lida.";
+            NFCResults = NFCResults.concat(event.message.records);
+            displayNFCResults();
+            // Parar de escanear após uma leitura
+            abortController.abort();
+        };
+
+        try {
+            await ndef.scan({ signal: abortController.signal });
+            resultMobile.innerHTML = "Escaneamento iniciado.";
+            buttonBreak.disabled = false; // Habilitar o botão de parar
+        } catch (error) {
+            resultMobile.innerHTML = `Erro! Falha ao iniciar o escaneamento: ${error}.`;
+            buttonMobile.disabled = false; // Habilitar o botão de escanear novamente
+            buttonBreak.disabled = true; // Desabilitar o botão de parar
+        }
+    }
+
+    function displayNFCResults() {
+        var resultMobile = document.getElementById("resultMobile");
+        resultMobile.innerHTML = "";
+        for (let index = 0; index < NFCResults.length; index++) {
+            const record = NFCResults[index];
+            const buf = record.data.buffer;
+            const str = new TextDecoder().decode(buf);
+            const li = document.createElement("li");
+            li.innerHTML = str;
+            
+            resultMobile.innerText = resultMobile.appendChild(li)
+        }
+    }
+
+    function toggleNFCScanning() {
+        if (abortController) {
+            abortController.abort();
+        }
+        document.getElementById("buttonMobile").disabled = false; // Habilitar o botão de escanear novamente
+        document.getElementById("buttonBreak").disabled = true; // Desabilitar o botão de parar
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        var buttonMobile = document.getElementById("buttonMobile");
+        var buttonBreak = document.getElementById("buttonBreak");
+
+        logScan(); // Chamar logScan assim que a página carrega
+
+        buttonMobile.addEventListener("click", function() {
+            buttonMobile.disabled = true;
+            scanNFCTags(); // Iniciar escaneamento quando o botão for clicado
+        });
+
+        buttonBreak.addEventListener("click", function() {
+            toggleNFCScanning(); // Parar de escanear e reativar o botão de escanear
+        });
+    });*/
+
+
+    function checkOs() {
+        let userAgent = window.navigator.userAgent;
+        let platform = window.navigator.platform;
+        let os = null;
+
+        if (platform.indexOf('Win') !== -1) {
+            os = 'Windows';
+        } else if (platform.indexOf('Mac') !== -1) {
+            os = 'Mac';
+        } else if (platform.indexOf('X11') !== -1 || platform.indexOf('Linux') !== -1) {
+            os = 'Linux';
+        } else if (/Android/.test(userAgent)) {
+            os = 'Android';
+        } else if (/iPhone|iPod|iPad/.test(userAgent)) {
+            os = 'Apple';
+        }
+        return os;
+    }
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+
+        const log = document.getElementById("resultMobile");
+        const mobileButton = document.getElementById("buttonMobile");
+        const check = checkOs();
+
+        mobileButton.addEventListener("click", async () => {
+            log.innerText = "Leitura iniciada";
+
+            try {
+                if (check == 'Windows' || check == 'Mac' || check == 'Linux' || !('NFC' in window)) {
+
+                    log.innerHTML = "Seu navegador/sistema operacional não permite leitura por aproximação. <br>Por favor, tente em outro dispositivo.";
+                } else if (check == 'Android' || check == 'Apple') {
+                    //Representando o leitor por uma variável
+                    const ndef = new NDEFReader();
+                    //Esperando o escaneamento ser feito
+                    await ndef.scan();
+
+                    //Em caso de um readingerror
+                    ndef.addEventListener("readingerror", () => {
+                        log.innerText = "Não foi possível ler os dados do cartão. Tente novamente.";
+                    });
+
+                    //Em caso da leitura ter sido bem-sucedida
+                    ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                        //
+                        log.innerText = `> Serial ${serialNumber}\n> Records: (${message.records.length})`;
+                    });
+                }
+            } catch (error) {
+                log.innerText = "ERRO! ==>" + error;
+            }
+        });
+    });
+            
+
+    checkOs()
+</script>
+</body>
+</html>
